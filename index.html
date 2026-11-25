@@ -297,6 +297,7 @@
     </div>
     
     <div class="top-actions">
+        <button class="btn-action" id="btn-auth" style="background-color: #db4437;" onclick="cloudSync.toggleAuth()">🔑 התחבר עם Google</button>
         <button class="btn-action btn-darkmode" onclick="planner.toggleDarkMode()">🌙 תצוגה</button>
         <button class="btn-action btn-target" onclick="planner.openTargetModal()">🎯 יעדים</button>
         <button class="btn-action btn-analytics" onclick="window.AppStats.openModal(planner)">📊 סטטיסטיקות</button>
@@ -1713,6 +1714,10 @@
                 }))
             };
             localStorage.setItem('degreePlannerState', JSON.stringify(saveData));
+            // Sync to Firebase cloud if user is logged in
+            if (window.cloudSync && window.cloudSync.currentUser) {
+                window.cloudSync.saveToCloud(saveData);
+            }
         }
 
         exportToExcel() {
@@ -1913,6 +1918,90 @@
         }
     };
 </script>
+<!-- Firebase SDKs (Compat version for direct browser integration) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
+<script>
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyDBsxl0GFIZBEhA8ZxkfwZOxuJwqKU80rs",
+        authDomain: "materials-degree-planner.firebaseapp.com",
+        projectId: "materials-degree-planner",
+        storageBucket: "materials-degree-planner.firebasestorage.app",
+        messagingSenderId: "744648301751",
+        appId: "1:744648301751:web:f9c2c9fae2455ca9518132"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    window.cloudSync = {
+        currentUser: null,
+
+        toggleAuth() {
+            if (this.currentUser) {
+                if (confirm(`מחובר כ-${this.currentUser.displayName}. האם להתנתק?`)) {
+                    auth.signOut();
+                }
+            } else {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                auth.signInWithPopup(provider).catch(err => {
+                    console.error("Login error:", err);
+                    alert("שגיאה בהתחברות עם Google: " + err.message);
+                });
+            }
+        },
+
+        async saveToCloud(saveData) {
+            if (!this.currentUser) return;
+            try {
+                await db.collection('users').doc(this.currentUser.uid).set({
+                    plannerState: saveData,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (err) {
+                console.error("Cloud save error:", err);
+            }
+        },
+
+        async loadFromCloud(uid) {
+            try {
+                const doc = await db.collection('users').doc(uid).get();
+                if (doc.exists && doc.data().plannerState) {
+                    const cloudData = doc.data().plannerState;
+                    if (window.planner && cloudData.track && window.AppTracks[cloudData.track]) {
+                        window.planner.loadFromData(cloudData);
+                    }
+                } else {
+                    // Upload current local plan if user has no cloud backup yet
+                    if (window.planner && window.planner.currentTrackId) {
+                        window.planner.saveToLocal();
+                    }
+                }
+            } catch (err) {
+                console.error("Cloud load error:", err);
+            }
+        }
+    };
+
+    // Listen to authentication state changes
+    auth.onAuthStateChanged(user => {
+        const authBtn = document.getElementById('btn-auth');
+        window.cloudSync.currentUser = user;
+
+        if (user) {
+            authBtn.innerText = `👤 ${user.displayName.split(' ')[0]} (מחובר)`;
+            authBtn.style.backgroundColor = '#2e7d32';
+            window.cloudSync.loadFromCloud(user.uid);
+        } else {
+            authBtn.innerText = '🔑 התחבר עם Google';
+            authBtn.style.backgroundColor = '#db4437';
+        }
+    });
+</script>
 </body>
 </html>
