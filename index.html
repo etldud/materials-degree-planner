@@ -289,15 +289,17 @@
 <body>
 
 <header class="top-header">
-    <div class="header-title">
+   <div class="header-title">
         <h1>מחשבון תואר חומרים</h1>
-        <select id="track-selector" onchange="planner.switchTrack(this.value)">
-            <option value="" disabled selected>--- אנא בחר מסלול מהרשימה ---</option>
-        </select>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <select id="track-selector" onchange="planner.switchTrack(this.value)">
+                <option value="" disabled selected>--- אנא בחר מסלול מהרשימה ---</option>
+            </select>
+            <button class="btn-action" id="btn-auth" style="background-color: #db4437; padding: 6px 12px;" onclick="cloudSync.toggleAuth()">🔑 התחבר עם Google</button>
+        </div>
     </div>
     
     <div class="top-actions">
-        <button class="btn-action" id="btn-auth" style="background-color: #db4437;" onclick="cloudSync.toggleAuth()">🔑 התחבר עם Google</button>
         <button class="btn-action btn-darkmode" onclick="planner.toggleDarkMode()">🌙 תצוגה</button>
         <button class="btn-action btn-target" onclick="planner.openTargetModal()">🎯 יעדים</button>
         <button class="btn-action btn-analytics" onclick="window.AppStats.openModal(planner)">📊 סטטיסטיקות</button>
